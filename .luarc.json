@@ -1,0 +1,14 @@
+{
+  "$schema": "https://raw.githubusercontent.com/LuaLS/vscode-lua/master/setting/schema.json",
+  "runtime": {
+    "version": "5.5"
+  },
+  "workspace": {
+    "library": [
+      "${3rd}/love2d/library",
+      "/home/golden/.vscode/extensions/sumneko.lua-3.19.2-linux-x64/server/meta/3rd/love2d/library"
+
+    ]
+    // "checkThirdParty": false
+  }
+}

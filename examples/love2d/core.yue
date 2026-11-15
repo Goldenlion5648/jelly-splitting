@@ -1,0 +1,200 @@
+import "love" 
+-- import p from "yue"
+
+
+dump = (table, indent="") -> 
+    print("{")
+    for k, v in pairs(table)
+        if #indent > 0
+            io.write indent
+        io.write k .. ": "
+        if type(v) == 'table'
+            print!
+            dump v, indent .. "    "
+        else
+            print(v) 
+    print("}")
+
+show = (to_show, indent="") -> 
+    if to_show == nil
+        return ""
+    ret = "{\n"
+    for k, v in pairs(to_show)
+        if #indent > 0
+            ret ..= indent
+        ret ..= k .. ": "
+        if type(v) == 'table'
+            ret ..= "\n"
+            ret ..= (show v, indent .. "    ")
+        else
+            ret ..= tostring(v) .. "\n"
+    ret ..= "}"
+    if indent == ""
+        love.graphics.print(ret, 10, 10)
+    return ret
+
+class Rectangle
+    new: (@x, @y, @width, @height) =>
+    
+    contains: (point_x, point_y) =>
+        return @x <= point_x <= (@x + @width) and @y <= point_y <= (@y + @height)
+    
+
+main_font = love.graphics.newFont("CourierPrime-Regular.ttf", 28)
+rects = {
+    Rectangle(10, 10, 750, 400)
+}
+selected_index = 1
+kb = {}
+
+-- macro hide_errors = (hide_errors) ->
+--   global debugMode = debugging == "true"
+--   ""
+hide_errors = false
+
+if hide_errors
+    love.errorhandler = (msg) ->
+        msg = tostring(msg)
+        print(msg)
+        LuaReload.Monitor!
+        love.graphics.print(msg, 10, 10)
+
+reset_state = ->
+    if #rects != 0
+        return
+    table.insert(rects, Rectangle(10, 10, 750, 400))
+
+love.load = ->
+    love.graphics.setBackgroundColor 0.5, 0.1, 0.5, 1
+    
+
+debug_text = ""
+names = {"jo", "ron", "harry"}
+
+-- macro debugLog = ()->
+--     if show_logs
+--         print() 
+split_rect_at = (index) ->
+    with rects[index]
+        if .width > .height
+            width_before = .width
+            .width /= 2
+            half_width = .width
+            table.insert(rects, Rectangle(.x + half_width, .y, half_width, .height))
+        else
+            height_before = .height
+            .height /= 2
+            half_height = .height
+            table.insert(rects, Rectangle(.x, .y + half_height, .width, half_height))
+            
+
+
+love.keypressed = (key) ->
+    debug_text = ""
+    if key == "e"
+        debug_text ..= "e was pressed"
+    if key == "r"
+        reset_state()
+    if key in {"q", "escape"}
+        love.event.quit()
+    if key == 'a'
+        love.event.quit()
+
+-- love.keyreleased = (key) ->
+--     keys_pressed[key] = nil
+--     just_pressed[key] = nil
+--     print("released", key)
+--     old_keys_pressed[key] = nil
+
+macro lua = (code) -> {
+  :code
+  type: "lua"
+}
+
+--     msg = tostring(msg)
+--     print(msg)
+--     LuaReload.Monitor!
+--     love.graphics.print(msg, 10, 10)
+   
+
+-- macro mark_key_state = (key)-> 
+--     if love.keyboard.isDown(key)
+--         kb[key] = love.timer.getTime!
+--     else
+--         kb[key] = never_pressed_time
+--     return
+
+
+never_pressed_time = -100
+was_just_pressed = (key) ->
+    was_down_before = (kb[key] ?? never_pressed_time) > 0
+    -- $mark_key_state(key)
+    if love.keyboard.isDown(key)
+        kb[key] = love.timer.getTime!
+    else
+        kb[key] = never_pressed_time
+    print(kb[key])
+    return love.keyboard.isDown(key) and not was_down_before
+
+-- is_pressed_with_repeat_allowed = (key, repeat_time=1) ->
+--     last_pressed_at = (kb[key] ?? never_pressed_time)
+--     if love.keyboard.isDown(key)
+--         if key not in kb
+--             kb[key] = love.timer.getTime!
+--     else
+--         kb[key] = never_pressed_time
+--     if last_pressed_at == never_pressed_time
+--         return false
+--     last_pressed_at > 0 or love.timer.getTime! - last_pressed_at >= repeat_time
+
+love.update = (dt) ->
+    LuaReload.Monitor!
+    reset_state()
+    -- if love.keyboard.isDown "escape"
+    if was_just_pressed("s")
+        print("just pressed s")
+        split_rect_at(selected_index)
+        
+
+    love.graphics.setBackgroundColor 0.5, 0.8, 0.5, 1
+    -- dump(just_pressed)
+
+
+love.draw = ->
+    love.graphics.setFont(main_font)
+    tile_size = 100
+    mouse_pos_x, mouse_pos_y = love.mouse.getPosition()
+    -- print(mouse_pos_x, mouse_pos_y)
+    for i, rect in ipairs rects
+        if i == selected_index
+            love.graphics.setColor(.8, .6, .7)
+        else
+            love.graphics.setColor(.3, .6, .7)
+
+        if rect\contains(mouse_pos_x, mouse_pos_y)
+            love.graphics.setColor(1, 1, 1)
+            
+        love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
+        love.graphics.setColor(0, 0, 0)
+        love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height)
+        
+
+    -- love.graphics.rectangle("fill", 10, 10, tile_size, tile_size)s
+    love.graphics.setColor(1, 1, 1)
+    -- if is_pressed_with_repeat_allowed("d")
+    --     print("registerd d")
+    -- dump(board)
+    -- if love.keyboard.isDown("f")
+    --     love.graphics.print("cool", 32, 132)
+    -- for i, name in ipairs names 
+    --     love.graphics.print(i .. ": " .. name, 32, 132 + i * 30)
+
+    -- love.graphics.setColor(0, 0, 0)
+    -- show(rects)
+    -- love.graphics.print(love.timer.getTime!)
+    -- love.graphics.setColor 0.8, 0.8, 0.8
+    -- major, minor, revision, codename = love.getVersion( )
+    -- love.graphics.print("#{major}, #{minor}, revision, codename", 32, 32)
+    -- love.graphics.print(text, 32, 32)
+    -- love.graphics.print("#{mouse_pos_x}, #{mouse_pos_y}", mouse_pos_x, mouse_pos_y - 15)
+    -- love.graphics.print(names[1, 3], mouse_pos_x, mouse_pos_y - 15)
