@@ -1,3 +1,6 @@
 .vscode/
 testfile*.lua
 log.txt
+
+examples/exported
+examples/jelly_slicing_exported

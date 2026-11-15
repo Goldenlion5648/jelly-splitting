@@ -56,3 +56,20 @@ countdown = (n) ->
 
 for x in countdown 10
     print(x)
+
+macro config = (debugging) ->
+  global debugMode = debugging == "true"
+  ""
+
+macro asserts = (cond) ->
+  debugMode and "assert #{cond}" or ""
+
+macro assert = (cond) ->
+  debugMode and "assert #{cond}" or "#{cond}"
+
+item = 4
+
+$config false
+$asserts item ~= nil
+
+print("end")
