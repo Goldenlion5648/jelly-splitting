@@ -8,3 +8,8 @@ for hot reload:
 (with vscode, yuescript recompiles on save) or run `yue -w .`
 then inside the directory where the core.yue file is
 `love .`
+
+
+fix default value syntax coloring
+goto definition for class values doesn't work
+closing parenthesis gets eaten

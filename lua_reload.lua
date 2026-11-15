@@ -1031,6 +1031,7 @@ end
 Reload = function(fileName, chunkOriginal, chunkNew, returnValues)
     reloadTimes = reloadTimes + 1
     if log then Log("*** Reloading", fileName, "***") end
+    print("reloading")
 
     if log then Log("\n*** LOOKING FOR REFERENCES ***") end
     local references, visitedDuringSearch = FindReferences(fileName)

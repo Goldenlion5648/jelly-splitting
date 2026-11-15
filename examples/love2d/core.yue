@@ -38,19 +38,31 @@ class Rectangle
     
     contains: (point_x, point_y) =>
         return @x <= point_x <= (@x + @width) and @y <= point_y <= (@y + @height)
+
+    get_center: (offset_x=0, offset_y=0) =>
+        return @x + (@width / 2) + offset_x, @y + (@height / 2) + offset_y
+    
+    get_top_left: () =>
+        return @x, @y
+    
+    get_bottom_right: () =>
+        return @x + @width, @y + @height
     
 
 main_font = love.graphics.newFont("CourierPrime-Regular.ttf", 28)
 rects = {
     Rectangle(10, 10, 750, 400)
 }
+
+squish_sounds = [love.audio.newSource("sounds/squish#{i}.wav", "static") for i =1,3]
 selected_index = 1
 kb = {}
+SMALLEST_SIZE_ALLOWED = 20
 
 -- macro hide_errors = (hide_errors) ->
 --   global debugMode = debugging == "true"
 --   ""
-hide_errors = false
+hide_errors = true
 
 if hide_errors
     love.errorhandler = (msg) ->
@@ -60,39 +72,73 @@ if hide_errors
         love.graphics.print(msg, 10, 10)
 
 reset_state = ->
-    if #rects != 0
-        return
+    rects = {}
     table.insert(rects, Rectangle(10, 10, 750, 400))
 
 love.load = ->
     love.graphics.setBackgroundColor 0.5, 0.1, 0.5, 1
     
-
-debug_text = ""
-names = {"jo", "ron", "harry"}
-
 -- macro debugLog = ()->
 --     if show_logs
 --         print() 
+
+on_split_success = ->
+    if love.keyboard.isDown("lshift")
+        selected_index = #rects
+    squish_sounds[math.random(#squish_sounds)]\play()
+
+
 split_rect_at = (index) ->
     with rects[index]
         if .width > .height
-            width_before = .width
-            .width /= 2
-            half_width = .width
-            table.insert(rects, Rectangle(.x + half_width, .y, half_width, .height))
-        else
-            height_before = .height
-            .height /= 2
-            half_height = .height
-            table.insert(rects, Rectangle(.x, .y + half_height, .width, half_height))
+            if .width / 2 >= SMALLEST_SIZE_ALLOWED
+                width_before = .width
+                .width /= 2
+                half_width = .width
+                table.insert(rects, Rectangle(.x + half_width, .y, half_width, .height))
+                on_split_success!
+            return
             
+        else
+            if .height / 2 >= SMALLEST_SIZE_ALLOWED
+                print .height
+                height_before = .height
+                .height /= 2
+                half_height = .height
+                table.insert(rects, Rectangle(.x, .y + half_height, .width, half_height))
+                on_split_success!
+            return
+
+    
+
+
+    
+            
+show_shadow_split_spot = (index) ->
+    with rects[index]
+        if .width > .height
+            if .width / 2 >= SMALLEST_SIZE_ALLOWED
+                line_width = .width * .05
+                half_line_width = line_width / 2
+                -- vertical line
+                width_before = .width
+                moving_offset = math.sin(love.timer.getTime() * 10) * (.height * .1)
+                half_rect_width = .width / 2
+                love.graphics.rectangle("fill", 
+                    .x + half_rect_width - half_line_width, .y + moving_offset, line_width, .height + moving_offset
+                )
+        else
+            if .height / 2 >= SMALLEST_SIZE_ALLOWED
+                line_width = .height * .05
+                half_line_width = line_width / 2
+                -- horizontal line
+                moving_offset = math.sin(love.timer.getTime() * 10) * (.width * .1)
+                height_before = .height
+                half_height = .height / 2
+                love.graphics.rectangle("fill", .x + moving_offset, .y + half_height - half_line_width,  .width + moving_offset, line_width)
 
 
 love.keypressed = (key) ->
-    debug_text = ""
-    if key == "e"
-        debug_text ..= "e was pressed"
     if key == "r"
         reset_state()
     if key in {"q", "escape"}
@@ -133,27 +179,70 @@ was_just_pressed = (key) ->
         kb[key] = love.timer.getTime!
     else
         kb[key] = never_pressed_time
-    print(kb[key])
     return love.keyboard.isDown(key) and not was_down_before
 
--- is_pressed_with_repeat_allowed = (key, repeat_time=1) ->
---     last_pressed_at = (kb[key] ?? never_pressed_time)
---     if love.keyboard.isDown(key)
---         if key not in kb
---             kb[key] = love.timer.getTime!
---     else
---         kb[key] = never_pressed_time
---     if last_pressed_at == never_pressed_time
---         return false
---     last_pressed_at > 0 or love.timer.getTime! - last_pressed_at >= repeat_time
+repeat_kb = {}
+is_pressed_with_repeat_allowed = (key, repeat_time=.3) ->
+    if not love.keyboard.isDown(key)
+        repeat_kb[key] = nil
+        return false
+    if repeat_kb[key] == nil or love.timer.getTime! - repeat_kb[key] >= repeat_time
+        repeat_kb[key] = love.timer.getTime!
+        return true
+    return false
+
+bring_focus_to_neighbors = ->
+    x_offset = 0
+    y_offset = 0
+    if is_pressed_with_repeat_allowed "left"
+        print("left")
+        x_offset = -SMALLEST_SIZE_ALLOWED / 2
+    if is_pressed_with_repeat_allowed "right"
+        print("right")
+        x_offset = SMALLEST_SIZE_ALLOWED / 2
+        
+    if is_pressed_with_repeat_allowed "up"
+        print("up")
+        y_offset = -SMALLEST_SIZE_ALLOWED / 2
+    if is_pressed_with_repeat_allowed "down"
+        print("down")
+        y_offset = SMALLEST_SIZE_ALLOWED / 2
+    
+    -- print(x_offset, y_offset)
+    if x_offset == 0 and y_offset == 0
+        return
+
+    print(rects[selected_index]\get_center())
+    cur_x, cur_y = rects[selected_index]\get_center(-SMALLEST_SIZE_ALLOWED / 2, -SMALLEST_SIZE_ALLOWED / 2)
+    if love.keyboard.isDown("lshift")
+        cur_x, cur_y = rects[selected_index]\get_center(SMALLEST_SIZE_ALLOWED / 2, SMALLEST_SIZE_ALLOWED / 2)
+    print(cur_x, cur_y)
+
+
+    screen_size_x = 800
+    screen_size_y = 450
+    while -10 <= cur_x <= screen_size_x and -10 <= cur_y <= screen_size_y
+        cur_x += x_offset
+        cur_y += y_offset
+        print(cur_y, cur_x)
+        for i, rect in ipairs rects
+            if rect == rects[selected_index]
+                continue
+            if rect\contains(cur_x, cur_y)
+                selected_index = i
+                return
+
+did_slice_action = (repeat_time=.2) ->
+    is_pressed_with_repeat_allowed("s", repeat_time) or is_pressed_with_repeat_allowed("space", repeat_time)
 
 love.update = (dt) ->
-    LuaReload.Monitor!
-    reset_state()
+    if love.window.hasFocus!
+        LuaReload.Monitor!
     -- if love.keyboard.isDown "escape"
-    if was_just_pressed("s")
+    if did_slice_action()
         print("just pressed s")
         split_rect_at(selected_index)
+    bring_focus_to_neighbors()
         
 
     love.graphics.setBackgroundColor 0.5, 0.8, 0.5, 1
@@ -171,18 +260,19 @@ love.draw = ->
         else
             love.graphics.setColor(.3, .6, .7)
 
-        if rect\contains(mouse_pos_x, mouse_pos_y)
-            love.graphics.setColor(1, 1, 1)
+        -- if rect\contains(mouse_pos_x, mouse_pos_y)
+        --     love.graphics.setColor(1, 1, 1)
             
         love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
         love.graphics.setColor(0, 0, 0)
         love.graphics.rectangle("line", rect.x, rect.y, rect.width, rect.height)
         
+    show_shadow_split_spot(selected_index)
 
     -- love.graphics.rectangle("fill", 10, 10, tile_size, tile_size)s
     love.graphics.setColor(1, 1, 1)
-    -- if is_pressed_with_repeat_allowed("d")
-    --     print("registerd d")
+    if is_pressed_with_repeat_allowed("d", .2)
+        print("registerd d")
     -- dump(board)
     -- if love.keyboard.isDown("f")
     --     love.graphics.print("cool", 32, 132)
