@@ -15,7 +15,7 @@ macro doHotReload = (cond) ->
   debugMode and "LuaReload.Monitor!" or ""
 
 
-$reload_config true
+$reload_config false
 
 dump = (table, indent="") -> 
     print(indent.."{")
@@ -70,6 +70,8 @@ class Rectangle
     get_clone: () =>
         return Rectangle(@x, @y, @width, @height, @age)
     
+test = Rectangle(4, )
+
 
 main_font = love.graphics.newFont("CourierPrime-Regular.ttf", 28)
 is_using_mouse_for_nav = false
@@ -99,26 +101,38 @@ if hide_errors
         $doHotReload
         love.graphics.print(msg, 10, 10)
 
-
-make_goal = ->
-    for i=1,4
-        split_rect_at(goal, math.random(#goal))
-
 has_done_initial_setup = false
 is_showing_goal_overlay = true
 has_won_current = false
 current_level = 1
+local split_rect_at
+start_next_level_cooldown = 0
+
+make_goal = ->
+    goal = {}
+    table.insert(goal, Rectangle(10, 10, 750, 400))
+    math.randomseed(current_level)
+    if current_level == 1
+        for i=1,4
+            split_rect_at(goal, math.random(#goal))
+    elseif current_level == 2
+        for i=1,5
+            split_rect_at(goal, 1)
+    else
+        for i=1,7
+            split_rect_at(goal, math.random(#goal))
+
+is_showing_goal_overlay = false
+
 reset_state_as_needed = ->
     if has_done_initial_setup
         return
     rects = {}
-    goal = {}
+    undo_stack = {}
     selected_index = 1
     has_won_current = false
     table.insert(rects, Rectangle(10, 10, 750, 400))
-    table.insert(goal, Rectangle(10, 10, 750, 400))
     make_goal!
-    is_showing_goal_overlay = false
     has_done_initial_setup = true
 
     
@@ -140,16 +154,20 @@ choose_random_from = (some_table) ->
 
 add_to_undo_stack = ->
     undo_stack[]= [rect\get_clone() for rect in *rects]
-    dump(undo_stack)
-    print("end undo stack")
+    undo_stack[#undo_stack]["selected_index"] = selected_index
+    -- print("end undo stack")
 
 
 remove_from_undo_stack = ->
-    rects = [rect\get_clone() for rect in *undo_stack[#undo_stack]]
-    undo_stack[#undo_stack] = nil
-    undo_sound\clone()\play()
+    if #undo_stack > 0
+        rects = [rect\get_clone() for rect in *undo_stack[#undo_stack]]
+        selected_index = undo_stack[#undo_stack]["selected_index"]
+        undo_stack[#undo_stack] = nil
+        undo_sound\clone()\play()
+    else
+        deny_sound\clone()\play()
     
-global split_rect_at = (to_split, index) ->
+split_rect_at = (to_split, index) ->
     with to_split[index]
         if .width > .height
             if .width / 2 >= SMALLEST_SIZE_ALLOWED
@@ -307,6 +325,8 @@ bring_focus_to_neighbors = ->
                 return
 
 did_slice_action = (repeat_time=.3) ->
+    if has_won_current
+        return false
     is_pressed_with_repeat_allowed("s", repeat_time) or is_pressed_with_repeat_allowed("space", repeat_time) or\
         is_pressed_with_repeat_allowed("return", repeat_time) or\
         is_mouse_pressed_once()
@@ -362,8 +382,13 @@ love.update = (dt) ->
         print("matches")
         has_won_current = true
         current_level += 1
-
         win_sound\clone()\play()
+        start_next_level_cooldown = 60
+    
+    start_next_level_cooldown = math.max(start_next_level_cooldown - 1, 0)
+    if start_next_level_cooldown == 1
+        has_done_initial_setup = false
+
 
     -- if love.keyboard.isDown "escape"
     if did_slice_action()
@@ -396,11 +421,12 @@ love.draw = ->
                 love.graphics.setColor(.3, .2, .0, ghost_alpha)
 
                 
-            love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
-            shrink_amount = rect.height * .05
-            r, g, b, a = love.graphics.getColor()
-            love.graphics.setColor(r, g * .75, b, a)
-            love.graphics.rectangle("fill", rect.x + shrink_amount, rect.y + shrink_amount, rect.width - (shrink_amount * 2), rect.height - (shrink_amount * 2))
+            if table_num == 1
+                love.graphics.rectangle("fill", rect.x, rect.y, rect.width, rect.height)
+                shrink_amount = rect.height * .05
+                r, g, b, a = love.graphics.getColor()
+                love.graphics.setColor(r, g * .75, b, a)
+                love.graphics.rectangle("fill", rect.x + shrink_amount, rect.y + shrink_amount, rect.width - (shrink_amount * 2), rect.height - (shrink_amount * 2))
             if table_num == 1
                 love.graphics.setColor(0, 0, 0, normal_view_alpha)
             else
@@ -429,7 +455,7 @@ love.draw = ->
             if table_num == 1
                 show_shadow_split_spot(selected_index)
             love.graphics.setColor(1, 1, 1, 1)
-
+        love.graphics.print("Read instructions below", 10, 420)
     -- love.graphics.rectangle("fill", 10, 10, tile_size, tile_size)s
     love.graphics.setColor(1, 1, 1)
     -- if is_pressed_with_repeat_allowed("d", .2)
