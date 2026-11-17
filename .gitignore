@@ -2,5 +2,8 @@
 testfile*.lua
 log.txt
 
-examples/exported
-examples/jelly_slicing_exported
+*/exported
+*/jelly_slicing_exported
+
+notes.txt
+scratch*
