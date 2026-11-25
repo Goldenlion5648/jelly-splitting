@@ -1,5 +1,5 @@
--- LuaReload = dofile("../../lua_reload.lua")
--- LuaReload.Inject()
+LuaReload = dofile("../../lua_reload.lua")
+LuaReload.Inject()
 -- LuaReload.SetPrintReloadingLogs(false)
-
+LuaReload.SetHandleGlobalModules(true)
 dofile("core.lua")
